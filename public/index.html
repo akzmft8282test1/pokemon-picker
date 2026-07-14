@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poké Collector RPG</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="#"> Pokédex RPG</a>
+        <span class="navbar-text text-white" id="userInfo" style="display:none;">
+            <!-- 🪙 코인 애니메이션 디자인 바인딩 -->
+            <div class="pokecoin-container mr-3">
+                <div class="pokecoin"></div>
+                <span id="userCoins">0</span> PC
+            </div>
+            <span id="userTag" class="badge badge-info mr-2 p-2"></span>
+            <button class="btn btn-sm btn-outline-danger" onclick="logout()">로그아웃</button>
+        </span>
+    </div>
+</nav>
+
+<div class="container pb-5 mt-4">
+    <!-- 로그인 영역 (유저 아이디 자유 지정 가능) -->
+    <div id="authSection" class="card mx-auto p-4" style="max-width: 400px; margin-top: 60px;">
+        <h3 id="authTitle" class="text-center font-weight-bold mb-4">트레이너 인증</h3>
+        <input type="text" id="username" class="form-control mb-3" placeholder="원하는 유저 아이디 지정 가능" required>
+        <input type="password" id="password" class="form-control mb-3" placeholder="비밀번호" required>
+        <button class="btn btn-primary btn-block font-weight-bold" id="primaryAuthBtn" onclick="login()">접속 / 생성</button>
+        <button class="btn btn-link btn-block btn-sm text-muted" id="toggleAuthBtn" onclick="toggleAuthMode()">신규 트레이너 계정 등록하기</button>
+    </div>
+
+    <!-- 메인 게임 보드 -->
+    <div id="mainSection" style="display:none;">
+        <div class="master-progress-container mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="font-weight-bold"><i class="fa-solid fa-seedling text-success mr-2"></i>전체 도감 마스터 완성도</span>
+                <span id="masterProgressPercent" class="text-primary font-weight-bold">0%</span>
+            </div>
+            <div class="progress" style="height:12px;">
+                <div id="masterProgressBar" class="progress-bar bg-success progress-bar-striped" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 소환/조우 엔진 -->
+            <div class="col-lg-6 mb-4">
+                <div class="card p-4">
+                    <h4 class="font-weight-bold">🎲 포켓몬 뽑기 게이트</h4>
+                    <div class="d-flex gap-2 my-3">
+                        <button class="btn btn-primary flex-fill font-weight-bold mr-2" onclick="rollPokemon('normal')">일반 뽑기 소환 (100 PC)</button>
+                        <button class="btn btn-purple flex-fill font-weight-bold text-white" style="background:#6f42c1;" onclick="rollPokemon('filter')">✨ 특수 필터 뽑기 (1000 PC)</button>
+                    </div>
+                    <p class="text-muted" style="font-size:0.8rem;">* 특수 필터 뽑기는 메가진화, 전설, 환상, 울트라비스트 및 고확률 이로치만 전용 타겟 소환합니다.</p>
+
+                    <div id="pityAlert" class="alert alert-light border py-1 mb-3" style="font-size: 0.8rem;">
+                        전설/환상 확정 천장 카운터: <strong id="pitySpan">0</strong> / 50
+                    </div>
+
+                    <!-- 포획/조우 전용 카드 -->
+                    <div id="pokemonResult" class="pokemon-card p-3 border rounded" style="display:none; background:#fff;">
+                        <h5 class="text-danger font-weight-bold" id="shinyTitle" style="display:none;">✨ 이로치 포켓몬 조우! ✨</h5>
+                        <div id="resNumber" class="text-muted">No.000</div>
+                        <h3 id="resName" class="font-weight-bold">포켓몬 이름</h3>
+                        <div><span id="resClassBadge" class="badge badge-warning p-1">일반</span></div>
+                        <div id="resTypes" class="my-2"></div>
+
+                        <div class="sprite-container my-2">
+                            <img id="resImg" src="" style="max-height:130px; object-fit:contain;">
+                        </div>
+
+                        <!-- 3D 볼 투척 포획 연출 인터페이스 -->
+                        <div id="captureControlZone" class="my-3 border-top pt-2">
+                            <h6 class="font-weight-bold text-secondary">던질 포획볼 선택 (실시간 확률 연산 적용)</h6>
+                            <div class="ball-selector-wrap">
+                                <button class="pokeball-btn" id="btnBallPoke" onclick="throwBall('poke')">
+                                    <div class="ball-3d ball-normal"><div class="ball-center-button"></div></div>
+                                    <span style="font-size:0.75rem;">몬스터볼</span>
+                                </button>
+                                <button class="pokeball-btn" id="btnBallGreat" onclick="throwBall('great')">
+                                    <div class="ball-3d ball-super"><div class="ball-center-button"></div></div>
+                                    <span style="font-size:0.75rem;">슈퍼볼</span>
+                                </button>
+                                <button class="pokeball-btn" id="btnBallUltra" onclick="throwBall('ultra')">
+                                    <div class="ball-3d ball-hyper"><div class="ball-hyper-stripes"></div><div class="ball-center-button"></div></div>
+                                    <span style="font-size:0.75rem;">하이퍼볼</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="max-width:200px; margin: 0 auto;"><canvas id="statsRadarChart"></canvas></div>
+                        <div class="typewriter-box mt-2" id="typewriterText" style="font-size:0.8rem; background:#333; color:#fff; padding:5px;"></div>
+                    </div>
+                </div>
+
+                <!-- 어드민 치트 컨트롤 데시보드 -->
+                <div id="adminPanel" class="card p-3 border-danger mt-4" style="display:none; background:#fff5f5;">
+                    <h5 class="text-danger font-weight-bold">👑 Admin 권한 마스터 치트 패널</h5>
+                    <div class="form-group mb-2">
+                        <label style="font-size:0.85rem;">재화(포켓코인) 실시간 강제 설정:</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" id="cheatCoinInput" class="form-control" value="5000">
+                            <div class="input-group-append"><button class="btn btn-danger" onclick="cheatCoins()">보정</button></div>
+                        </div>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label style="font-size:0.85rem;">특정 코드 강제 주입 소환:</label>
+                        <div class="row no-gutters gap-1">
+                            <div class="col-5"><input type="number" id="cheatPokemonId" class="form-control form-control-sm" placeholder="도감ID (예:150)"></div>
+                            <div class="col-4 d-flex align-items-center justify-content-center"><label class="mb-0" style="font-size:0.75rem;"><input type="checkbox" id="cheatShinyCheck"> 이로치</label></div>
+                            <div class="col-3"><button class="btn btn-sm btn-dark btn-block" onclick="cheatSpawn()">소환</button></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 데이터 저장 인벤토리 탭 인프라 -->
+            <div class="col-lg-6">
+                <div class="card p-3">
+                    <ul class="nav nav-tabs" id="gameTabs">
+                        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#storageTab" onclick="loadStorage()">🎒 내 보관함</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#marketTab" onclick="loadMarket()">🏪 교환 거래소</a></li>
+                        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#rankTab" onclick="loadRanking()">🏆 랭킹</a></li>
+                    </ul>
+                    <div class="tab-content pt-3">
+                        <div class="tab-pane fade show active" id="storageTab">
+                            <div class="d-flex justify-content-between mb-2">
+                                <select id="sortOption" class="form-control form-control-sm" style="width:120px;" onchange="renderStorageList()">
+                                    <option value="recent">최근 획득순</option>
+                                    <option value="number">번호순</option>
+                                </select>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="releaseSelected()">방생</button>
+                                    <button class="btn btn-sm btn-outline-warning" onclick="favoriteSelected()">★</button>
+                                </div>
+                            </div>
+                            <div id="storageList" style="max-height:350px; overflow-y:auto;"></div>
+                        </div>
+                        <div class="tab-pane fade" id="marketTab">
+                            <div class="p-2 border rounded mb-2 bg-light">
+                                <input type="text" id="tradeUid" class="form-control form-control-sm mb-1" placeholder="내 포켓몬 고유 UID 입력">
+                                <select id="wantedType" class="form-control form-control-sm mb-1">
+                                    <option value="fire">불꽃 타입 희망</option>
+                                    <option value="water">물 타입 희망</option>
+                                    <option value="grass">풀 타입 희망</option>
+                                </select>
+                                <button class="btn btn-sm btn-info btn-block" onclick="registerTrade()">매물 등록</button>
+                            </div>
+                            <div id="marketList"></div>
+                        </div>
+                        <div class="tab-pane fade" id="rankTab">
+                            <table class="table table-sm text-center" style="font-size:0.85rem;">
+                                <thead><tr><th>순위</th><th>트레이너</th><th>도감</th><th>이로치</th></tr></thead>
+                                <tbody id="rankBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="feed-container" id="globalFeed"></div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script>
+    let isSignUpMode = false; let currentUser = ''; let currentRollData = null; let storageCache = []; let radarChartInstance = null;
+    const socket = io();
+
+    socket.on('globalAlert', (data) => {
+        const item = document.createElement('div'); item.className = 'feed-item';
+        item.innerHTML = `<strong>[전역 방송]</strong> ${data.username}님이 특수 등급 <strong>${data.pokeName}</strong> 포획 성공! 🎉`;
+        document.getElementById('globalFeed').appendChild(item);
+        setTimeout(() => item.remove(), 5000);
+    });
+
+    function toggleAuthMode() {
+        isSignUpMode = !isSignUpMode;
+        document.getElementById('authTitle').innerText = isSignUpMode ? '회원가입 계정생성' : '트레이너 인증';
+        document.getElementById('primaryAuthBtn').innerText = isSignUpMode ? '신규 가입완료' : '접속 / 생성';
+    }
+
+    async function login() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const url = isSignUpMode ? '/api/signup' : '/api/login';
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+        const data = await res.json(); alert(data.message);
+        if (data.success && !isSignUpMode) {
+            currentUser = data.username;
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('mainSection').style.display = 'block';
+            document.getElementById('userInfo').style.display = 'inline-block';
+            document.getElementById('userTag').innerText = currentUser;
+            if (data.isAdmin) document.getElementById('adminPanel').style.display = 'block';
+            loadUserStatus(); loadStorage();
+        }
+    }
+
+    async function loadUserStatus() {
+        const res = await fetch('/api/user/status'); const data = await res.json();
+        if (data.success) {
+            document.getElementById('userCoins').innerText = data.coins.toLocaleString();
+            document.getElementById('pitySpan').innerText = data.pity_count;
+            const percent = ((data.uniqueCollected / data.totalNum) * 100).toFixed(1);
+            document.getElementById('masterProgressPercent').innerText = `${percent}% [${data.uniqueCollected}/${data.totalNum}]`;
+            document.getElementById('masterProgressBar').style.width = `${percent}%`;
+        }
+    }
+
+    async function rollPokemon(mode) {
+        const ballType = mode === 'filter' ? 'poke' : 'poke'; // 기본값 세팅
+        const res = await fetch('/api/pokemon/roll', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode, ballType }) });
+        const data = await res.json();
+        if (!data.success) return alert(data.message);
+
+        currentRollData = data;
+        document.getElementById('shinyTitle').style.display = data.isShiny ? 'block' : 'none';
+        document.getElementById('resNumber').innerText = data.pokemon.number;
+        document.getElementById('resName').innerText = data.pokemon.name + (data.isShiny ? ' ✨' : '');
+        document.getElementById('resClassBadge').innerText = data.pokemon.classification;
+        document.getElementById('resImg').src = data.pokemon.artworkImage || data.pokemon.image;
+        
+        const resTypes = document.getElementById('resTypes'); resTypes.innerHTML = '';
+        data.pokemon.types.forEach(t => resTypes.innerHTML += `<span class="badge badge-secondary mr-1">${t}</span>`);
+
+        document.getElementById('typewriterText').innerText = data.pokemon.flavorText;
+        drawRadarChart(data.pokemon.stats);
+        document.getElementById('pokemonResult').style.display = 'block';
+        
+        // 필터식 즉시 포획 예외처리 조절
+        if (mode === 'filter') {
+            document.getElementById('captureControlZone').style.display = 'none';
+            alert("✨ 특수 필터 소환 성공! 100% 확률로 보관함에 즉시 확보 처리 단계로 진입합니다.");
+            saveTrigger(data.pokemon);
+        } else {
+            document.getElementById('captureControlZone').style.display = 'block';
+        }
+        loadUserStatus();
+    }
+
+    async function throwBall(ballType) {
+        if(!currentRollData) return;
+        // 볼 던지기 연산 위임 시뮬레이션
+        let bonus = 1.0;
+        if(ballType === 'great') bonus = 1.5;
+        if(ballType === 'ultra') bonus = 2.5;
+
+        let prob = currentRollData.finalCatchRate * bonus;
+        if(Math.random() * 100 <= prob) {
+            alert("🔴 포획 성공! 안전하게 인벤토리 컬렉션으로 저장 처리를 지시합니다.");
+            await saveTrigger(currentRollData.pokemon);
+        } else {
+            alert("💨 아하! 던진 볼을 풀고 야생으로 탈출했습니다.");
+        }
+        document.getElementById('pokemonResult').style.display = 'none';
+        currentRollData = null;
+    }
+
+    async function saveTrigger(pokemon) {
+        const res = await fetch('/api/pokemon/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pokemon }) });
+        const sData = await res.json();
+        if(sData.success) { loadStorage(); loadUserStatus(); }
+    }
+
+    async function loadStorage() {
+        const res = await fetch('/api/pokemon/history'); const data = await res.json();
+        if (data.success) { storageCache = data.history; renderStorageList(); }
+    }
+
+    function renderStorageList() {
+        const container = document.getElementById('storageList'); container.innerHTML = '';
+        const sortVal = document.getElementById('sortOption').value;
+        let sorted = [...storageCache];
+        if (sortVal === 'number') sorted.sort((a,b)=> a.id - b.id);
+        
+        sorted.forEach(p => {
+            container.innerHTML += `
+                <div class="p-2 border-bottom d-flex justify-content-between align-items-center bg-white">
+                    <div>
+                        <input type="checkbox" class="storage-chk" value="${p.uid}">
+                        <span class="small text-muted">[${p.classification}]</span> <strong>${p.name}</strong>
+                        <br><span style="font-size:10px; color:#999;">UID: ${p.uid}</span>
+                    </div>
+                    <img src="${p.image}" style="width:35px; height:35px;">
+                </div>`;
+        });
+    }
+
+    async function cheatCoins() {
+        const coins = document.getElementById('cheatCoinInput').value;
+        const res = await fetch('/api/admin/cheat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'adjust_coins', coins }) });
+        const d = await res.json(); alert(d.message); loadUserStatus();
+    }
+
+    async function cheatSpawn() {
+        const targetId = document.getElementById('cheatPokemonId').value;
+        const isShiny = document.getElementById('cheatShinyCheck').checked;
+        const res = await fetch('/api/admin/cheat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'spawn_pokemon', targetId, isShiny }) });
+        const d = await res.json(); alert(d.message); loadStorage(); loadUserStatus();
+    }
+
+    function drawRadarChart(stats) {
+        if (radarChartInstance) radarChartInstance.destroy();
+        const ctx = document.getElementById('statsRadarChart').getContext('2d');
+        radarChartInstance = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['HP', 'ATK', 'DEF', 'S.ATK', 'S.DEF', 'SPD'],
+                datasets: [{ data: [stats.hp, stats.attack, stats.defense, stats.spAtk, stats.spDef, stats.speed], backgroundColor: 'rgba(255, 203, 5, 0.2)', borderColor: '#3b4cca', borderWidth: 1 }]
+            },
+            options: { scales: { r: { suggestedMin: 0, suggestedMax: 130 } } }
+        });
+    }
+
+    function getCheckedUids() { return Array.from(document.querySelectorAll('.storage-chk:checked')).map(c => c.value); }
+    async function releaseSelected() {
+        const uids = getCheckedUids();
+        await fetch('/api/pokemon/release-multi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uids }) });
+        loadStorage(); loadUserStatus();
+    }
+    async function favoriteSelected() {
+        const uids = getCheckedUids();
+        await fetch('/api/pokemon/favorite-multi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uids }) });
+        alert("즐겨찾기 대량 등록 완료");
+    }
+
+    async function registerTrade() {
+        const pokemonUid = document.getElementById('tradeUid').value;
+        const wantedType = document.getElementById('wantedType').value;
+        await fetch('/api/trade/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pokemonUid, wantedType }) });
+        loadStorage(); loadMarket();
+    }
+    async function loadMarket() {
+        const res = await fetch('/api/trade/list'); const data = await res.json();
+        const container = document.getElementById('marketList'); container.innerHTML = '';
+        data.trades.forEach(t => {
+            container.innerHTML += `<div class="p-2 border-bottom small">${t.seller}의 매물: ${t.pokemon.name} (희망타입: ${t.wanted_type}) <button class="btn btn-xs btn-success py-0" onclick="acceptTrade(${t.id})">교환</button></div>`;
+        });
+    }
+    async function acceptTrade(tradeId) {
+        const offerPokemonUid = prompt("제시할 내 포켓몬 UID 입력:"); if(!offerPokemonUid) return;
+        const res = await fetch('/api/trade/accept', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tradeId, offerPokemonUid }) });
+        const d = await res.json(); alert(d.message); loadStorage(); loadMarket();
+    }
+    async function loadRanking() {
+        const res = await fetch('/api/leaderboard'); const data = await res.json();
+        const body = document.getElementById('rankBody'); body.innerHTML = '';
+        data.leaderboard.forEach((r, i) => { body.innerHTML += `<tr><td>${i+1}</td><td>${r.username}</td><td>${r.uniqueCount}</td><td>${r.shinyCount}</td></tr>`; });
+    }
+    async function logout() { await fetch('/api/logout', { method: 'POST' }); location.reload(); }
+    function logout() { location.reload(); }
+</script>
+</body>
+</html>
