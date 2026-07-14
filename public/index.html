@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PokeAPI 포켓몬 랜덤 픽커</title>
+    <!-- Bootstrap & FontAwesome Icons -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { 
+            background: radial-gradient(circle, #fcfcfc 0%, #e9ecef 100%); 
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; 
+            min-height: 100vh;
+        }
+        .navbar {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            background: #2b2a33 !important;
+        }
+        .navbar-brand { 
+            font-weight: bold; 
+            color: #ffcb05 !important; 
+            text-shadow: 2px 2px #3b4cca; 
+            font-size: 1.6rem;
+            letter-spacing: 1px;
+        }
+        
+        .card { 
+            border-radius: 20px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08); 
+            border: none; 
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background: #ffffff;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+        }
+        
+        .pokemon-card { 
+            display: none; 
+            background: #ffffff; 
+            border: 3px solid #3b4cca; 
+            border-radius: 24px; 
+            padding: 30px 20px; 
+            margin-top: 25px; 
+            text-align: center; 
+            position: relative;
+            overflow: hidden;
+            animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .pokemon-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 8px;
+            background: linear-gradient(90deg, #ffcb05, #3b4cca);
+        }
+        
+        .poke-num { font-size: 1.4rem; color: #a0aec0; font-weight: 800; letter-spacing: 1px; }
+        .poke-name { font-size: 2.5rem; font-weight: 900; color: #1a202c; margin: 10px 0; }
+        
+        .sprite-container {
+            background: radial-gradient(circle, #f7fafc 10%, #edf2f7 100%);
+            border-radius: 50%;
+            width: 180px;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px auto;
+            border: 4px solid #e2e8f0;
+            box-shadow: inset 0 4px 10px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .poke-sprite {
+            width: 130px;
+            height: 130px;
+            object-fit: contain;
+            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.15));
+            transition: transform 0.3s ease;
+        }
+        .poke-sprite:hover {
+            transform: scale(1.15) rotate(5deg);
+        }
+        
+        .type-badge {
+            font-size: 0.9rem;
+            font-weight: bold;
+            padding: 5px 15px;
+            border-radius: 30px;
+            color: #fff;
+            margin: 2px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            display: inline-block;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .auth-box { 
+            max-width: 420px; 
+            margin: 80px auto; 
+            padding: 40px !important;
+            border-top: 5px solid #ffcb05;
+        }
+        .form-control {
+            border-radius: 10px;
+            padding: 24px 16px;
+            border: 2px solid #e2e8f0;
+            font-weight: 500;
+        }
+        .form-control:focus {
+            border-color: #3b4cca;
+            box-shadow: 0 0 0 3px rgba(59, 76, 202, 0.15);
+        }
+        
+        .btn-poke { 
+            background: linear-gradient(135deg, #ffcb05 0%, #ffd83b 100%); 
+            color: #3b4cca; 
+            font-weight: 800; 
+            border: 3px solid #3b4cca; 
+            border-radius: 15px;
+            padding: 14px;
+            font-size: 1.25rem;
+            transition: all 0.2s ease-in-out; 
+            box-shadow: 0 6px 15px rgba(255, 203, 5, 0.3);
+        }
+        .btn-poke:hover { 
+            background: linear-gradient(135deg, #3b4cca 0%, #2a3a99 100%); 
+            color: #ffcb05; 
+            border-color: #ffcb05;
+            box-shadow: 0 6px 15px rgba(59, 76, 202, 0.3);
+            transform: translateY(-2px);
+        }
+        .btn-poke:active {
+            transform: translateY(1px);
+        }
+        
+        .list-item { 
+            background: #ffffff; 
+            border-radius: 12px; 
+            padding: 12px 18px; 
+            margin-bottom: 10px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid #edf2f7;
+            transition: 0.2s;
+        }
+        .list-item:hover {
+            transform: scale(1.02);
+            background: #fcfcfc;
+        }
+        
+        .nav-tabs { border-bottom: 2px solid #e2e8f0; }
+        .nav-tabs .nav-link { 
+            font-weight: 800; 
+            color: #718096; 
+            border: none;
+            padding: 12px;
+        }
+        .nav-tabs .nav-link.active { 
+            color: #3b4cca; 
+            border-bottom: 3px solid #3b4cca; 
+            background: transparent;
+        }
+
+        .mission-box {
+            background: #fffaf0;
+            border: 2px dashed #f6ad55;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .roulette-num {
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #cbd5e0;
+        }
+
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: scale(0.3); }
+            50% { opacity: 0.9; transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes spinBall {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .spinning {
+            animation: spinBall 1s infinite linear;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 상단 내비게이션 바 -->
+<nav class="navbar navbar-dark">
+    <div class="container">
+        <a class="navbar-brand" href="#">
+            <i class="fa-solid fa-circle-dot mr-2"></i>Pokémon Picker
+        </a>
+        <span class="navbar-text text-white" id="userInfo" style="display:none;">
+            <span id="userTag" class="badge badge-info mr-2 p-2"></span> 
+            <button class="btn btn-sm btn-outline-danger" onclick="logout()">
+                <i class="fa-solid fa-right-from-bracket mr-1"></i>로그아웃
+            </button>
+        </span>
+    </div>
+</nav>
+
+<div class="container pb-5">
+    <!-- 로그인/회원가입 섹션 -->
+    <div id="authSection" class="card auth-box">
+        <h3 class="text-center mb-4 font-weight-bold text-dark" id="authTitle">로그인</h3>
+        <div class="form-group">
+            <div class="input-group">
+                <div class="input-group-prepend">
+                    <span class="input-group-text bg-light border-right-0"><i class="fa-solid fa-user text-muted"></i></span>
+                </div>
+                <input type="text" id="username" class="form-control border-left-0" placeholder="아이디를 입력하세요" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="input-group">
+                <div class="input-group-prepend">
+                    <span class="input-group-text bg-light border-right-0"><i class="fa-solid fa-lock text-muted"></i></span>
+                </div>
+                <input type="password" id="password" class="form-control border-left-0" placeholder="비밀번호를 입력하세요" required>
+            </div>
+        </div>
+        <button class="btn btn-poke btn-block mt-4" id="primaryAuthBtn" onclick="login()">로그인하기</button>
+        <button class="btn btn-link btn-block btn-sm mt-3 text-muted" id="toggleAuthBtn" onclick="toggleAuthMode()">
+            계정이 없으신가요? 회원가입
+        </button>
+    </div>
+
+    <!-- 메인 대시보드 섹션 -->
+    <div id="mainSection" class="row mt-5" style="display:none;">
+        
+        <!-- 왼쪽: 뽑기 화면 -->
+        <div class="col-lg-7 mb-4">
+            <!-- 오늘의 추천 포켓몬 미션 패널 -->
+            <div class="mission-box d-flex align-items-center">
+                <div class="mr-3" style="font-size: 2rem;">🎯</div>
+                <div>
+                    <h6 class="font-weight-bold text-dark mb-1">오늘의 속성 컬렉션 미션</h6>
+                    <p class="text-muted mb-0" id="missionText">로딩 중...</p>
+                </div>
+                <div class="ml-auto" id="missionBadge">
+                    <span class="badge badge-warning p-2">진행 중</span>
+                </div>
+            </div>
+
+            <div class="card p-4 text-center">
+                <h2 class="font-weight-bold text-dark mb-1">포켓몬 무작위 뽑기</h2>
+                <p class="text-muted">전국 도감(1~1025번) 포켓몬이 등장합니다!</p>
+                
+                <!-- 관리자 패널 -->
+                <div id="adminPanel" class="alert alert-warning text-left" style="display:none; border-radius: 12px;">
+                    <strong><i class="fa-solid fa-wrench mr-1"></i> 관리자 조작 패널</strong>
+                    <input type="number" id="customId" class="form-control mt-2" placeholder="치트: 원하는 도감 번호 지정 (1~1025)">
+                </div>
+
+                <!-- 룰렛 애니메이션 상태 바 -->
+                <div id="rouletteDisplay" class="roulette-num my-3" style="display:none;">
+                    <i class="fa-solid fa-circle-notch spinning text-primary mr-2"></i><span id="rouletteCounter">No. 0000</span>
+                </div>
+
+                <button class="btn btn-lg btn-poke btn-block my-3" id="rollBtn" onclick="rollPokemon()">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>🔮 포켓몬 뽑기
+                </button>
+                
+                <!-- 포켓몬 결과 카드 -->
+                <div id="pokemonResult" class="pokemon-card">
+                    <div class="poke-num" id="resNumber">No. 0000</div>
+                    <div class="poke-name" id="resName">포켓몬 이름</div>
+                    
+                    <!-- 타입 배지 추가 공간 -->
+                    <div id="resTypes" class="mb-3"></div>
+
+                    <!-- 이미지 디스플레이 프레임 -->
+                    <div class="sprite-container">
+                        <img id="resImg" src="" alt="포켓몬 이미지" class="poke-sprite">
+                    </div>
+
+                    <div class="mb-4">
+                        <a href="#" id="resLink" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill">
+                            <i class="fa-solid fa-book-open mr-1"></i>공식 도감 정보 ↗
+                        </a>
+                    </div>
+                    
+                    <!-- 컨트롤 버튼 -->
+                    <div class="d-flex justify-content-center bg-light p-3 rounded-lg" style="gap: 10px;">
+                        <button class="btn btn-success px-4" onclick="savePokemon()" style="border-radius:12px;">
+                            <i class="fa-solid fa-box-archive mr-1"></i>보관함 저장
+                        </button>
+                        <button class="btn btn-warning text-white px-4" onclick="triggerToggleFavorite()" style="border-radius:12px;">
+                            <i class="fa-solid fa-star mr-1"></i>즐겨찾기
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 오른쪽: 목록 & 검색 공간 -->
+        <div class="col-lg-5">
+            <div class="card p-4">
+                <ul class="nav nav-tabs mb-3" id="listTab" role="tablist">
+                    <li class="nav-item flex-fill text-center">
+                        <a class="nav-link active" id="history-tab" data-toggle="tab" href="#historyMenu" onclick="loadHistory()">
+                            <i class="fa-solid fa-box mr-1"></i>보관함
+                        </a>
+                    </li>
+                    <li class="nav-item flex-fill text-center">
+                        <a class="nav-link" id="favorite-tab" data-toggle="tab" href="#favoriteMenu" onclick="loadFavorites()">
+                            <i class="fa-solid fa-star mr-1"></i>즐겨찾기
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- 실시간 검색 바 필터 추가 -->
+                <div class="form-group mb-3">
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text bg-white border-right-0" style="border-radius:10px 0 0 10px;"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                        </div>
+                        <input type="text" id="listSearch" class="form-control" placeholder="수집한 포켓몬 이름 검색..." onkeyup="filterList()" style="border-radius: 0 10px 10px 0; padding: 12px 10px; height: auto;">
+                    </div>
+                </div>
+
+                <div class="tab-content" id="listTabContent">
+                    <div class="tab-pane fade show active" id="historyMenu">
+                        <div id="historyList" style="max-height: 400px; overflow-y: auto; padding-right: 5px;"></div>
+                    </div>
+                    <div class="tab-pane fade" id="favoriteMenu">
+                        <div id="favoriteList" style="max-height: 400px; overflow-y: auto; padding-right: 5px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let isSignUpMode = false; 
+    let currentPokemon = null;
+    let savedListCache = []; // 로컬 검색 및 동적 이벤트 바인딩용 임시 보관 배열
+    let currentTab = 'history';
+
+    // 포켓몬 고유 타입별 대표 CSS 컬러맵 정의
+    const typeColors = {
+        'normal': '#A8A77A', 'fire': '#EE8130', 'water': '#6390F0', 'electric': '#F7D02C',
+        'grass': '#7AC74C', 'ice': '#96D9D6', 'fighting': '#C22E28', 'poison': '#A33EA1',
+        'ground': '#E2BF65', 'flying': '#A98FF3', 'psychic': '#F95587', 'bug': '#A6B91A',
+        'rock': '#B6A136', 'ghost': '#705746', 'dragon': '#6F35FC', 'steel': '#B7B7D0',
+        'fairy': '#D685AD', 'dark': '#705746'
+    };
+
+    const typeKoNames = {
+        'normal': '노말', 'fire': '불꽃', 'water': '물', 'electric': '전기',
+        'grass': '풀', 'ice': '얼음', 'fighting': '격투', 'poison': '독',
+        'ground': '땅', 'flying': '비행', 'psychic': '에스퍼', 'bug': '벌레',
+        'rock': '바위', 'ghost': '고스트', 'dragon': '드래곤', 'steel': '강철',
+        'fairy': '페어리', 'dark': '악'
+    };
+
+    // 일일 미션 설정 (오늘의 행운 속성 뽑기 미션)
+    const missionTypes = ['grass', 'fire', 'water', 'electric', 'normal', 'bug'];
+    const todayIndex = new Date().getDay() % missionTypes.length;
+    const targetMissionType = missionTypes[todayIndex];
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById('missionText').innerHTML = `오늘 <strong>[${typeKoNames[targetMissionType]}]</strong> 타입 포켓몬을 뽑으세요!`;
+    });
+
+    function toggleAuthMode() {
+        isSignUpMode = !isSignUpMode;
+        document.getElementById('authTitle').innerText = isSignUpMode ? '회원가입' : '로그인';
+        document.getElementById('primaryAuthBtn').innerText = isSignUpMode ? '회원가입 하기' : '로그인';
+        document.getElementById('toggleAuthBtn').innerText = isSignUpMode ? '이미 계정이 있나요? 로그인' : '계정이 없으신가요? 회원가입';
+    }
+
+    async function login() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const url = isSignUpMode ? '/api/signup' : '/api/login';
+        
+        try {
+            const res = await fetch(url, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ username, password }) 
+            });
+            const data = await res.json(); 
+            alert(data.message);
+            
+            if (data.success && !isSignUpMode) showMainPage(data.username, data.isAdmin);
+            if (data.success && isSignUpMode) toggleAuthMode();
+        } catch (e) {
+            alert("서버 연결에 실패했습니다.");
+        }
+    }
+
+    function showMainPage(username, isAdmin) {
+        document.getElementById('authSection').style.display = 'none';
+        document.getElementById('mainSection').style.display = 'flex';
+        document.getElementById('userInfo').style.display = 'inline-block';
+        
+        const userTag = document.getElementById('userTag'); 
+        userTag.innerHTML = `<i class="fa-solid fa-user-tag mr-1"></i>${username}` + (isAdmin ? " (관리자)" : "");
+        
+        if(isAdmin) { 
+            document.getElementById('adminPanel').style.display = 'block'; 
+            userTag.className = "badge badge-danger mr-2 p-2"; 
+        }
+        loadHistory();
+    }
+
+    async function logout() { 
+        await fetch('/api/logout', { method: 'POST' }); 
+        location.reload(); 
+    }
+
+    // 포켓몬 룰렛 돌리기 이펙트 기능 탑재한 뽑기
+    async function rollPokemon() {
+        const customId = document.getElementById('customId') ? document.getElementById('customId').value : null;
+        const rollBtn = document.getElementById('rollBtn');
+        const rouletteDisplay = document.getElementById('rouletteDisplay');
+        const rouletteCounter = document.getElementById('rouletteCounter');
+        const resultCard = document.getElementById('pokemonResult');
+
+        // 미션 표시 초기화
+        document.getElementById('missionBadge').innerHTML = '<span class="badge badge-warning p-2">진행 중</span>';
+
+        // 룰렛 연출 준비
+        rollBtn.disabled = true;
+        resultCard.style.display = 'none';
+        rouletteDisplay.style.display = 'block';
+
+        let duration = 800; // 연출 시간(ms)
+        let timer = setInterval(() => {
+            let tempId = Math.floor(Math.random() * 1025) + 1;
+            rouletteCounter.innerText = `No. ${String(tempId).padStart(4, '0')}`;
+        }, 50);
+
+        try {
+            const res = await fetch('/api/pokemon/roll', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ customId }) 
+            });
+            const data = await res.json(); 
+
+            // API 로딩 및 연출 완료 후 결과 노출
+            setTimeout(() => {
+                clearInterval(timer);
+                rouletteDisplay.style.display = 'none';
+                rollBtn.disabled = false;
+
+                if (!data.success) return alert(data.message);
+                
+                currentPokemon = data.pokemon;
+                
+                // 결과 카드에 데이터 주입
+                document.getElementById('resNumber').innerText = currentPokemon.number;
+                document.getElementById('resName').innerText = currentPokemon.name;
+                document.getElementById('resLink').href = currentPokemon.url;
+                document.getElementById('resImg').src = currentPokemon.image;
+
+                // 타입 배지 그리기
+                const resTypes = document.getElementById('resTypes');
+                resTypes.innerHTML = '';
+                if (currentPokemon.types && currentPokemon.types.length > 0) {
+                    currentPokemon.types.forEach(type => {
+                        const color = typeColors[type] || '#718096';
+                        const koName = typeKoNames[type] || type;
+                        resTypes.innerHTML += `<span class="type-badge" style="background-color: ${color};">${koName}</span>`;
+                    });
+                    
+                    // 미션 달성 실시간 체크
+                    checkMission(currentPokemon.types);
+                }
+                
+                resultCard.style.display = 'block';
+            }, duration);
+
+        } catch (e) {
+            clearInterval(timer);
+            rouletteDisplay.style.display = 'none';
+            rollBtn.disabled = false;
+            alert("서버 오류가 발생해 포켓몬을 소환하지 못했습니다.");
+        }
+    }
+
+    // 미션 확인 로직
+    function checkMission(types) {
+        if (types.includes(targetMissionType)) {
+            document.getElementById('missionBadge').innerHTML = '<span class="badge badge-success p-2"><i class="fa-solid fa-circle-check mr-1"></i>획득 미션성공!</span>';
+        }
+    }
+
+    async function savePokemon() {
+        if(!currentPokemon) return;
+        const res = await fetch('/api/pokemon/save', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ pokemon: currentPokemon }) 
+        });
+        const data = await res.json(); 
+        alert(data.message); 
+        loadHistory();
+    }
+
+    // 현재 화면에 뜬 뽑기 결과 카드의 즐겨찾기 버튼 트리거 함수
+    async function triggerToggleFavorite() {
+        if (!currentPokemon) return;
+        await toggleFavorite(currentPokemon);
+    }
+
+    // 리스트 내 특정 항목에서 호출되는 즐겨찾기 변경 기능
+    async function toggleFavorite(pokemon) {
+        if(!pokemon) return;
+        const res = await fetch('/api/pokemon/toggle-favorite', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ pokemon }) 
+        });
+        const data = await res.json(); 
+        alert(data.message); 
+        
+        if (currentTab === 'history') {
+            loadHistory();
+        } else {
+            loadFavorites();
+        }
+    }
+
+    // 보관함 로드 및 캐시 저장
+    async function loadHistory() {
+        currentTab = 'history';
+        const res = await fetch('/api/pokemon/history'); 
+        const data = await res.json();
+        savedListCache = data.history || [];
+        renderList(savedListCache, 'historyList');
+    }
+
+    // 즐겨찾기 로드 및 캐시 저장
+    async function loadFavorites() {
+        currentTab = 'favorite';
+        const res = await fetch('/api/pokemon/favorites'); 
+        const data = await res.json();
+        savedListCache = data.favorites || [];
+        renderList(savedListCache, 'favoriteList');
+    }
+
+    // 리스트 렌더링
+    function renderList(list, targetElementId) {
+        const listDiv = document.getElementById(targetElementId);
+        if(!list || list.length === 0) { 
+            listDiv.innerHTML = '<p class="text-muted text-center py-4"><i class="fa-regular fa-folder-open mr-1" style="font-size:24px;"></i><br>리스트가 비어있습니다.</p>'; 
+            return; 
+        }
+
+        listDiv.innerHTML = '';
+        list.forEach((p, idx) => {
+            const isFavTab = targetElementId === 'favoriteList';
+            
+            // 타입 배지 목록 가공
+            const typeBadges = p.types ? p.types.map(t => {
+                const color = typeColors[t] || '#cbd5e0';
+                return `<span style="font-size: 0.65rem; color: #fff; background: ${color}; padding: 1px 6px; border-radius: 10px; margin-right:2px; font-weight:bold;">${typeKoNames[t] || t}</span>`;
+            }).join('') : '';
+
+            // 디폴트 이미지 백업 처리
+            const imgUrl = p.image ? p.image : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+
+            // HTML 문자열 생성
+            const itemHTML = `
+                <div class="list-item" ${isFavTab ? 'style="border-left: 5px solid #ffcb05;"' : ''}>
+                    <div class="d-flex align-items-center">
+                        <img src="${imgUrl}" alt="ico" class="mr-2" style="width: 40px; height: 40px; object-fit: contain;">
+                        <div>
+                            <span class="badge badge-secondary mr-2" style="font-size: 0.75rem;">${p.number}</span>
+                            <strong style="color:#2d3748;">${p.name}</strong>
+                            <div class="mt-1">${typeBadges}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm ${isFavTab ? 'btn-danger' : 'btn-warning text-white'} action-toggle-btn" style="border-radius:8px;">
+                            ${isFavTab ? '<i class="fa-solid fa-trash-can"></i>' : '<i class="fa-solid fa-star"></i>'}
+                        </button> 
+                        <a href="${p.url}" target="_blank" class="btn btn-sm btn-light" style="border-radius:8px;"><i class="fa-solid fa-square-arrow-up-right"></i></a>
+                    </div>
+                </div>
+            `;
+
+            // DOM 요소를 생성하여 이벤트 리스너를 바인딩하고 리스트에 주입 (JSON.stringify 이스케이프 버그 예방)
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = itemHTML.trim();
+            const element = wrapper.firstChild;
+
+            element.querySelector('.action-toggle-btn').addEventListener('click', () => {
+                toggleFavorite(p);
+            });
+
+            listDiv.appendChild(element);
+        });
+    }
+
+    // 클라이언트 필터링 및 검색 함수
+    function filterList() {
+        const query = document.getElementById('listSearch').value.trim().toLowerCase();
+        const filtered = savedListCache.filter(p => 
+            p.name.toLowerCase().includes(query) || 
+            p.number.toLowerCase().includes(query)
+        );
+        const targetId = currentTab === 'history' ? 'historyList' : 'favoriteList';
+        renderList(filtered, targetId);
+    }
+</script>
+</body>
+</html>
