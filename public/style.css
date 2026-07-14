@@ -1,0 +1,151 @@
+/* ==========================================
+   🪙 3D 회전 포켓코인 (PokeCoin)
+   ========================================== */
+.pokecoin-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: #f1c40f;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+.pokecoin {
+    width: 26px;
+    height: 26px;
+    background: radial-gradient(circle at 30% 30%, #ffe066, #f1c40f 60%, #d4ac0d);
+    border-radius: 50%;
+    border: 2px solid #b7950b;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3), inset -2px -2px 4px rgba(0,0,0,0.4);
+    display: inline-block;
+    position: relative;
+    animation: coin-spin 3s linear infinite;
+    transform-style: preserve-3d;
+    vertical-align: middle;
+}
+
+.pokecoin::after {
+    content: 'P';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #b7950b;
+    font-family: 'Arial Black', sans-serif;
+    font-size: 14px;
+    text-shadow: 1px 1px 0px #ffe066;
+}
+
+@keyframes coin-spin {
+    0% { transform: rotateY(0deg); }
+    100% { transform: rotateY(360deg); }
+}
+
+/* ==========================================
+   🔴 몬스터볼 입체 디자인 (기본, 슈퍼, 하이퍼)
+   ========================================== */
+.ball-selector-wrap {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin: 20px 0;
+}
+
+.pokeball-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.2s;
+}
+.pokeball-btn:hover {
+    transform: scale(1.1);
+}
+.pokeball-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.ball-3d {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 3px solid #111;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 10px rgba(0,0,0,0.3), inset -4px -4px 10px rgba(0,0,0,0.2);
+    background: #fff;
+}
+
+/* 상부 반구 공통 구분선 */
+.ball-3d::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    border-bottom: 3px solid #111;
+}
+
+/* 1. 일반 몬스터볼 (레드) */
+.ball-normal::before {
+    background: radial-gradient(circle at 40% 30%, #ff4d4d, #cc0000);
+}
+
+/* 2. 슈퍼볼 (블루 + 레드 줄무늬) */
+.ball-super::before {
+    background: radial-gradient(circle at 40% 30%, #3399ff, #005ce6);
+}
+.ball-super::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 15%;
+    width: 70%;
+    height: 50%;
+    background: linear-gradient(90deg, #ff3333 15%, transparent 15%, transparent 85%, #ff3333 85%);
+}
+
+/* 3. 하이퍼볼 (다크 그레이 + 옐로우 스트라이프) */
+.ball-hyper::before {
+    background: radial-gradient(circle at 40% 30%, #444, #111);
+}
+.ball-hyper-stripes {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 50%;
+    background: linear-gradient(90deg, transparent 20%, #f1c40f 20%, #f1c40f 35%, transparent 35%, transparent 65%, #f1c40f 65%, #f1c40f 80%, transparent 80%);
+}
+
+/* 중앙 버튼 (공통) */
+.ball-center-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border: 3px solid #111;
+    border-radius: 50%;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+.ball-center-button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    background: #ccc;
+    border-radius: 50%;
+}
