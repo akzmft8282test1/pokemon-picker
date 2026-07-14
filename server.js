@@ -8,14 +8,12 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Supabase 연동
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// PokeAPI 전국도감 기준 (한국어 번역이 깔끔한 1~1025번 세팅)
 const MAX_POKEMON = 1025;
 
 async function fetchPokemonFromAPI(id) {
@@ -36,19 +34,32 @@ async function fetchPokemonFromAPI(id) {
 // 회원가입
 app.post('/api/signup', async (req, res) => {
     const { username, password } = req.body;
-    const { data: existingUser } = await supabase.from('users').select('username').eq('username', username).single();
+    
+    // .maybeSingle()을 사용해 데이터가 없어도 에러가 발생하지 않음
+    const { data: existingUser, error: selectError } = await supabase.from('users').select('username').eq('username', username).maybeSingle();
+    if (selectError) {
+        console.error('회원가입 조회 에러:', selectError);
+        return res.status(500).json({ success: false, message: `DB 조회 오류: ${selectError.message}` });
+    }
     if (existingUser) return res.status(400).json({ success: false, message: '이미 존재하는 계정입니다.' });
 
-    const { error } = await supabase.from('users').insert([{ username, password, admin: false }]);
-    if (error) return res.status(500).json({ success: false, message: '회원가입 실패' });
+    const { error: insertError } = await supabase.from('users').insert([{ username, password, admin: false }]);
+    if (insertError) {
+        console.error('회원가입 등록 에러:', insertError);
+        return res.status(500).json({ success: false, message: `회원가입 실패: ${insertError.message} (Supabase RLS 설정을 확인하세요!)` });
+    }
     res.json({ success: true, message: '회원가입 완료!' });
 });
 
 // 로그인
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
-    const { data: user, error } = await supabase.from('users').select('*').eq('username', username).eq('password', password).single();
-    if (error || !user) return res.status(400).json({ success: false, message: '정보가 일치하지 않습니다.' });
+    const { data: user, error } = await supabase.from('users').select('*').eq('username', username).eq('password', password).maybeSingle();
+    
+    if (error || !user) {
+        if(error) console.error('로그인 조회 에러:', error);
+        return res.status(400).json({ success: false, message: '정보가 일치하지 않습니다.' });
+    }
 
     res.cookie('username', username, { httpOnly: true });
     res.json({ success: true, username, isAdmin: !!user.admin });
@@ -63,8 +74,10 @@ app.post('/api/logout', (req, res) => {
 async function auth(req, res, next) {
     const username = req.cookies.username;
     if (!username) return res.status(401).json({ success: false, message: '로그인이 필요합니다.' });
-    const { data: user } = await supabase.from('users').select('*').eq('username', username).single();
+    
+    const { data: user } = await supabase.from('users').select('*').eq('username', username).maybeSingle();
     if (!user) return res.status(401).json({ success: false, message: '인증 실패' });
+    
     req.username = username;
     req.user = user;
     next();
@@ -91,25 +104,27 @@ app.post('/api/pokemon/roll', auth, async (req, res) => {
 // 보관함 저장
 app.post('/api/pokemon/save', auth, async (req, res) => {
     const { pokemon } = req.body;
-    let { data } = await supabase.from('history').select('pokemon_list').eq('username', req.username).single();
+    let { data } = await supabase.from('history').select('pokemon_list').eq('username', req.username).maybeSingle();
     let list = data ? data.pokemon_list : [];
 
     if (list.some(p => p.id === pokemon.id)) return res.json({ success: true, message: '이미 보관함에 있습니다.' });
     list.push({ ...pokemon, savedAt: new Date().toISOString() });
 
-    await supabase.from('history').upsert({ username: req.username, pokemon_list: list });
+    const { error } = await supabase.from('history').upsert({ username: req.username, pokemon_list: list });
+    if (error) return res.status(500).json({ success: false, message: '보관함 저장 실패' });
+    
     res.json({ success: true, message: '보관함에 저장되었습니다!' });
 });
 
 app.get('/api/pokemon/history', auth, async (req, res) => {
-    const { data } = await supabase.from('history').select('pokemon_list').eq('username', req.username).single();
+    const { data } = await supabase.from('history').select('pokemon_list').eq('username', req.username).maybeSingle();
     res.json({ success: true, history: data ? data.pokemon_list : [] });
 });
 
 // 즐겨찾기 토글
 app.post('/api/pokemon/toggle-favorite', auth, async (req, res) => {
     const { pokemon } = req.body;
-    let { data } = await supabase.from('favorites').select('pokemon_list').eq('username', req.username).single();
+    let { data } = await supabase.from('favorites').select('pokemon_list').eq('username', req.username).maybeSingle();
     let list = data ? data.pokemon_list : [];
 
     const index = list.findIndex(p => p.id === pokemon.id);
@@ -118,12 +133,14 @@ app.post('/api/pokemon/toggle-favorite', auth, async (req, res) => {
     if (index > -1) { list.splice(index, 1); } 
     else { list.push(pokemon); isAdded = true; }
 
-    await supabase.from('favorites').upsert({ username: req.username, pokemon_list: list });
+    const { error } = await supabase.from('favorites').upsert({ username: req.username, pokemon_list: list });
+    if (error) return res.status(500).json({ success: false, message: '즐겨찾기 변경 실패' });
+    
     res.json({ success: true, isAdded, message: isAdded ? '즐겨찾기 추가! ★' : '즐겨찾기 제거! ☆' });
 });
 
 app.get('/api/pokemon/favorites', auth, async (req, res) => {
-    const { data } = await supabase.from('favorites').select('pokemon_list').eq('username', req.username).single();
+    const { data } = await supabase.from('favorites').select('pokemon_list').eq('username', req.username).maybeSingle();
     res.json({ success: true, favorites: data ? data.pokemon_list : [] });
 });
 
